@@ -31,31 +31,27 @@ try:
 except Exception:
     pass
 
-# ۴. دریافت قیمت‌ها از دیتابیس جایگزین و پایدار (بدون تحریم و فیلتر)
+# ۴. دریافت آنلاین و بدون فیلتر قیمت دلار (تتر) از سرور جهانی نوبیتکس
 financial_text = "💰 **وضعیت بازار مالی:**\n❌ دریافت اطلاعات بازار با خطا مواجه شد."
 try:
-    # یک منبع جایگزین که قیمت‌های روزانه بازار تهران را روی مخزن گیت‌هاب آپدیت می‌کند
-    res = requests.get("https://raw.githubusercontent.com/atbox/gold-api/master/db.json", timeout=5)
-    if res.status_code == 200:
-        data = res.json()
+    # درخواست به API رسمی و کاملاً پایدار نوبیتکس برای جفت‌ارز تتر/تومان
+    market_res = requests.get("https://api.nobitex.ir/v2/orderbook/USDTIRT", timeout=5)
+    
+    if market_res.status_code == 200:
+        market_data = market_res.json()
         
-        # استخراج دیتای ارز و طلا بر اساس ساختار دقیق دیتابیس
-        currency_data = data.get("currency", {})
-        gold_data = data.get("gold", {})
+        # استخراج آخرین قیمت معامله شده (تومان)
+        last_trade_price = market_data.get("lastTradePrice", "نامشخص")
         
-        # گرفتن قیمت‌ها (قیمت عددی موجود در فیلد p)
-        usd_price = currency_data.get("usd", {}).get("p", "نامشخص")
-        gold_18k = gold_data.get("geram18", {}).get("p", "نامشخص")
-        coin_emami = gold_data.get("sekee", {}).get("p", "نامشخص")
-        
-        # فرمت دهی متون قیمت‌ها
-        financial_text = (
-            f"💰 **پایش بازار مالی (تومان):**\n"
-            f"💵 دلار بازار آزاد: {usd_price}\n"
-            f"🪙 طلای ۱۸ عیار (گرم): {gold_18k}\n"
-            f"🪙 سکه امامی: {coin_emami}"
-        )
-except Exception:
+        if str(last_trade_price).isdigit():
+            # تبدیل به عدد و سه رقم سه رقم جدا کردن برای شیک شدن
+            f_dollar = f"{int(last_trade_price):,} تومان"
+            financial_text = (
+                f"💰 **پایش بازار مالی (تومان - Nobitex):**\n"
+                f"💵 دلار بازار آزاد (تتر): {f_dollar}\n"
+                f"💡 نکته: این نرخ از سرور پایداری ابری استخراج شده است."
+            )
+except Exception as e:
     pass
 
 # ۵. بانک جملات مدیریتی
