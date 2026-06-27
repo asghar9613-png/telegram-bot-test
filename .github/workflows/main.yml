@@ -18,7 +18,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests jdatetime pytz 
+          pip install requests jdatetime pytz beautifulsoup4  
 
       - name: Run Python
         env:
