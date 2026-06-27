@@ -4,6 +4,7 @@ import jdatetime
 import pytz
 import random
 from datetime import datetime
+from bs4 import BeautifulSoup
 
 # ۱. دریافت توکن‌ها از سکرت‌های گیت‌هاب
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -25,38 +26,36 @@ shamsi_date = jdatetime.datetime.now(tehran_tz).strftime("%Y/%m/%d")
 # ۳. دریافت آنلاین وضعیت آب و هوای تهران
 weather_text = "🌤️ آب‌وهوا: در دسترس نیست"
 try:
-    weather_res = requests.get("https://wttr.in/Tehran?format=%C+++%t")
+    weather_res = requests.get("https://wttr.in/Tehran?format=%C+++%t", timeout=5)
     if weather_res.status_code == 200:
         weather_text = f"🌤️ هوای تهران: {weather_res.text.strip()}"
 except Exception:
     pass
 
-# ۴. دریافت آنلاین قیمت طلا و ارز از API عمومی و زنده
+# ۴. استخراج آنلاین و معتبر قیمت‌ها از سایت TGJU
 financial_text = "💰 **وضعیت بازار مالی:**\n❌ دریافت اطلاعات بازار با خطا مواجه شد."
 try:
-    # متصل شدن به یک اپن‌دیتا برای قیمت ارز و طلا در ایران
-    gold_res = requests.get("https://brsapi.ir/FreeTsetmcBourseApi/Api_Free_Gold_Currency.json")
-    if gold_res.status_code == 200:
-        data = gold_res.json()
+    # درخواست به سایت شبکه اطلاع‌رسانی طلا و ارز با هدر مرورگر برای جلوگیری از بلاک شدن
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+    tgju_res = requests.get("https://www.tgju.org/", headers=headers, timeout=10)
+    
+    if tgju_res.status_code == 200:
+        soup = BeautifulSoup(tgju_res.text, 'html.parser')
         
-        # استخراج قیمت‌ها از ساختار دیتای خروجی
-        currency_list = data.get("currency", [])
-        gold_list = data.get("gold", [])
+        # پیدا کردن قیمت‌ها از روی کلاس‌های مشخص در سایت TGJU
+        dollar_span = soup.find("li", {"id": "price_dollar_id"})
+        gold_span = soup.find("li", {"id": "price_geram18"})
+        coin_span = soup.find("li", {"id": "price_sekee"})
         
-        dollar_price = next((item["price"] for item in currency_list if item["name"] == "دلار"), "نامشخص")
-        euro_price = next((item["price"] for item in currency_list if item["name"] == "یورو"), "نامشخص")
-        gold_18k = next((item["price"] for item in gold_list if "18" in item["name"]), "نامشخص")
-        
-        # سه رقم سه رقم جدا کردن قیمت‌ها برای خوانایی بهتر
-        f_dollar = f"{dollar_price:,} ریال" if isinstance(dollar_price, int) else dollar_price
-        f_euro = f"{euro_price:,} ریال" if isinstance(euro_price, int) else euro_price
-        f_gold = f"{gold_18k:,} ریال" if isinstance(gold_18k, int) else gold_18k
+        dollar_price = dollar_span.find("span", {"class": "value"}).text.strip() if dollar_span else "نامشخص"
+        gold_price = gold_span.find("span", {"class": "value"}).text.strip() if gold_span else "نامشخص"
+        coin_price = coin_span.find("span", {"class": "value"}).text.strip() if coin_span else "نامشخص"
         
         financial_text = (
-            f"💰 **پایش بازار مالی (ریال):**\n"
-            f"💵 دلار بازار آزاد: {f_dollar}\n"
-            f"💶 یورو: {f_euro}\n"
-            f"🪙 طلای ۱۸ عیار (گرم): {f_gold}"
+            f"💰 **پایش بازار مالی (تومان - TGJU):**\n"
+            f"💵 دلار بازار آزاد: {dollar_price}\n"
+            f"🪙 طلای ۱۸ عیار (گرم): {gold_price}\n"
+            f"🪙 سکه امامی: {coin_price}"
         )
 except Exception as e:
     pass
@@ -94,6 +93,6 @@ response = requests.post(url, data={
 })
 
 if response.status_code == 200:
-    print("Advanced financial report sent successfully!")
+    print("TGJU financial report sent successfully!")
 else:
     print(f"Failed to send. Error: {response.text}")
