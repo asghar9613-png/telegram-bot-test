@@ -31,37 +31,31 @@ try:
 except Exception:
     pass
 
-# ۴. دریافت آنلاین قیمت طلا و ارز از API فوق‌العاده پایدار و معتبر Navasan
+# ۴. دریافت قیمت‌ها از دیتابیس جایگزین و پایدار (بدون تحریم و فیلتر)
 financial_text = "💰 **وضعیت بازار مالی:**\n❌ دریافت اطلاعات بازار با خطا مواجه شد."
 try:
-    # یک وب‌سرویس ایرانی بسیار پایدار و بدون نیاز به دور زدن تحریم
-    response_market = requests.get("https://api.navasan.tech/latest", timeout=7)
-    
-    if response_market.status_code == 200:
-        data = response_market.json()
+    # یک منبع جایگزین که قیمت‌های روزانه بازار تهران را روی مخزن گیت‌هاب آپدیت می‌کند
+    res = requests.get("https://raw.githubusercontent.com/atbox/gold-api/master/db.json", timeout=5)
+    if res.status_code == 200:
+        data = res.json()
         
-        # استخراج قیمت‌ها (قیمت‌ها در این API به تومان هستند)
-        usd_data = data.get("usd", {})
-        gold_data = data.get("geram18", {})
-        coin_data = data.get("sekee", {})
+        # استخراج دیتای ارز و طلا بر اساس ساختار دقیق دیتابیس
+        currency_data = data.get("currency", {})
+        gold_data = data.get("gold", {})
         
-        # گرفتن قیمت فروش (value)
-        dollar_val = usd_data.get("value", "نامشخص")
-        gold_val = gold_data.get("value", "نامشخص")
-        coin_val = coin_data.get("value", "نامشخص")
+        # گرفتن قیمت‌ها (قیمت عددی موجود در فیلد p)
+        usd_price = currency_data.get("usd", {}).get("p", "نامشخص")
+        gold_18k = gold_data.get("geram18", {}).get("p", "نامشخص")
+        coin_emami = gold_data.get("sekee", {}).get("p", "نامشخص")
         
-        # فرمت‌دهی و سه رقم سه رقم جدا کردن اعداد
-        f_dollar = f"{int(dollar_val):,} تومان" if str(dollar_val).isdigit() else dollar_val
-        f_gold = f"{int(gold_val):,} تومان" if str(gold_val).isdigit() else gold_val
-        f_coin = f"{int(coin_val):,} تومان" if str(coin_val).isdigit() else coin_val
-        
+        # فرمت دهی متون قیمت‌ها
         financial_text = (
             f"💰 **پایش بازار مالی (تومان):**\n"
-            f"💵 دلار بازار آزاد: {f_dollar}\n"
-            f"🪙 طلای ۱۸ عیار (گرم): {f_gold}\n"
-            f"🪙 سکه امامی: {f_coin}"
+            f"💵 دلار بازار آزاد: {usd_price}\n"
+            f"🪙 طلای ۱۸ عیار (گرم): {gold_18k}\n"
+            f"🪙 سکه امامی: {coin_emami}"
         )
-except Exception as e:
+except Exception:
     pass
 
 # ۵. بانک جملات مدیریتی
