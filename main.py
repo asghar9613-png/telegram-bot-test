@@ -5,83 +5,72 @@ import pytz
 import random
 from datetime import datetime
 
-# ۱. دریافت توکن‌ها از سکرت‌های گیت‌هاب
-BOT_TOKEN = os.environ.get("BOT_TOKEN")
-CHAT_ID = os.environ.get("CHAT_ID")
-
-# ۲. تنظیم دقیق ساعت و زمان رسمی ایران (تهران)
+# ---------------------------------------------------------
+# بخش اول: تنظیم زمان و تاریخ (حساب و کتاب تقویم)
+# ---------------------------------------------------------
+# ساعت سرور گیت‌هاب را به وقت آسیا/تهران تغییر می‌دهیم
 tehran_tz = pytz.timezone('Asia/Tehran')
 now_tehran = datetime.now(tehran_tz)
-time_str = now_tehran.strftime("%H:%M")
+time_str = now_tehran.strftime("%H:%M") # استخراج ساعت و دقیقه
 
-# محاسبه تاریخ شمسی و روز هفته
-days_of_week = {
-    0: "دوشنبه", 1: "سه‌شنبه", 2: "چهارشنبه", 
-    3: "پنج‌شنبه", 4: "جمعه", 5: "شنبه", 6: "یکشنبه"
-}
+# نام روزهای هفته را به فارسی جفت می‌کنیم
+days_of_week = {0: "دوشنبه", 1: "سه‌شنبه", 2: "چهارشنبه", 3: "پنج‌شنبه", 4: "جمعه", 5: "شنبه", 6: "یکشنبه"}
 day_name = days_of_week[now_tehran.weekday()]
+
+# تاریخ میلادی سرور را به شمسی تبدیل می‌کنیم
 shamsi_date = jdatetime.datetime.now(tehran_tz).strftime("%Y/%m/%d")
 
-# ۳. دریافت آنلاین وضعیت آب و هوای تهران
-weather_text = "🌤️ آب‌وهوا: در دسترس نیست"
+# ---------------------------------------------------------
+# بخش دوم: گرفتن اطلاعات آنلاین آب‌و‌هوا
+# ---------------------------------------------------------
+weather_text = "🌤️ هوای تهران: در دسترس نیست"
 try:
+    # به سایت wttr وصل می‌شویم و ۵ ثانیه بیشتر منتظر نمی‌مانیم (timeout=5)
     weather_res = requests.get("https://wttr.in/Tehran?format=%C+++%t", timeout=5)
     if weather_res.status_code == 200:
         weather_text = f"🌤️ هوای تهران: {weather_res.text.strip()}"
 except Exception:
-    pass
+    pass # اگر اینترنت قطع بود، برنامه بدون ارور دادن عبور می‌کند
 
-# ۴. دریافت آنلاین و بدون فیلتر قیمت دلار (تتر) از سرور جهانی نوبیتکس
-financial_text = "💰 **وضعیت بازار مالی:**\n❌ دریافت اطلاعات بازار با خطا مواجه شد."
-try:
-    # درخواست به API رسمی و کاملاً پایدار نوبیتکس برای جفت‌ارز تتر/تومان
-    market_res = requests.get("https://api.nobitex.ir/v2/orderbook/USDTIRT", timeout=5)
-    
-    if market_res.status_code == 200:
-        market_data = market_res.json()
-        
-        # استخراج آخرین قیمت معامله شده (تومان)
-        last_trade_price = market_data.get("lastTradePrice", "نامشخص")
-        
-        if str(last_trade_price).isdigit():
-            # تبدیل به عدد و سه رقم سه رقم جدا کردن برای شیک شدن
-            f_dollar = f"{int(last_trade_price):,} تومان"
-            financial_text = (
-                f"💰 **پایش بازار مالی (تومان - Nobitex):**\n"
-                f"💵 دلار بازار آزاد (تتر): {f_dollar}\n"
-                f"💡 نکته: این نرخ از سرور پایداری ابری استخراج شده است."
-            )
-except Exception as e:
-    pass
-
-# ۵. بانک جملات مدیریتی
+# ---------------------------------------------------------
+# بخش سوم: انتخاب جمله روز و ساخت بدنه پیام
+# ---------------------------------------------------------
 quotes = [
-    "«مدیریت یعنی هنر انجام کارها به وسیله دیگران و هدایت انرژی‌ها به سمت هدف.»",
+    "«مدیریت یعنی هنر انجام کارها به وسیله دیگران.»",
     "«بهترین راه برای پیش‌بینی آینده، ساختن آن است.»",
-    "«نظم و تداوم، تفاوت اصلی بین رویا و واقعیت است.»",
-    "«یک مدیر موفق، پل می‌سازد؛ نه دیوار.»"
+    "«نظم و تداوم، تفاوت اصلی بین رویا و واقعیت است.»"
 ]
-selected_quote = random.choice(quotes)
+selected_quote = random.choice(quotes) # انتخاب تصادفی یک جمله
 
-# ۶. ساختن بدنه نهایی گزارش جامع آغاز روز
+# قالب‌بندی نهایی متن گزارش برای ارسال
 message = (
-    f"👑 **دستیار جامع مالی و مدیریتی**\n"
+    f"👑 **دستیار جامع مدیریتی**\n"
     f"━━━━━━━━━━━━━━━━━━\n"
     f"📅 **روز:** {day_name} | ⏰ **ساعت:** {time_str}\n"
     f"📆 **تاریخ شمسی:** {shamsi_date}\n"
     f"{weather_text}\n"
-    f"━━━━━━━━━━━━━━━━━━\n"
-    f"{financial_text}\n"
     f"━━━━━━━━━━━━━━━━━━\n"
     f"💡 **جمله مدیریتی روز:**\n"
     f"{selected_quote}\n\n"
     f"🚀 روز پربرکت و موفقی داشته باشی اصغر جان!"
 )
 
-# ۷. ارسال به تلگرام
-url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-requests.post(url, data={
-    "chat_id": CHAT_ID,
-    "text": message,
-    "parse_mode": "Markdown"
-})
+# ---------------------------------------------------------
+# بخش چهارم: شلیک اطلاعات به تلگرام و بله
+# ---------------------------------------------------------
+# ۱. ارسال به تلگرام (با استفاده از سکرت‌هایی که قبلاً ساختی)
+TELEGRAM_TOKEN = os.environ.get("BOT_TOKEN")
+TELEGRAM_CHAT_ID = os.environ.get("CHAT_ID")
+
+if TELEGRAM_TOKEN and TELEGRAM_CHAT_ID:
+    tele_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    requests.post(tele_url, data={"chat_id": TELEGRAM_CHAT_ID, "text": message, "parse_mode": "Markdown"})
+
+# ۲. ارسال به بله (به آدرس سرور بله دقت کن؛ دقیقاً مثل تلگرام است!)
+# برای تست سریع، می‌توانی توکن و چت‌آیدی بله را مستقیم درون کوتیشن بگذاری
+BALE_TOKEN = "200848722:ci15Oxn3JuizYjY75fLcQrhXBT1KFm-2akU"
+BALE_CHAT_ID = "1779961872"
+
+if BALE_TOKEN and BALE_CHAT_ID !="200848722:ci15Oxn3JuizYjY75fLcQrhXBT1KFm-2akU":
+    bale_url = f"https://api.bale.ai/bot{BALE_TOKEN}/sendMessage"
+    requests.post(bale_url, data={"chat_id": BALE_CHAT_ID, "text": message})
