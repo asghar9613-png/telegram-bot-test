@@ -4,7 +4,6 @@ import jdatetime
 import pytz
 import random
 from datetime import datetime
-from bs4 import BeautifulSoup
 
 # ۱. دریافت توکن‌ها از سکرت‌های گیت‌هاب
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
@@ -32,30 +31,35 @@ try:
 except Exception:
     pass
 
-# ۴. استخراج آنلاین و معتبر قیمت‌ها از سایت TGJU
+# ۴. دریافت آنلاین قیمت طلا و ارز از API فوق‌العاده پایدار و معتبر Navasan
 financial_text = "💰 **وضعیت بازار مالی:**\n❌ دریافت اطلاعات بازار با خطا مواجه شد."
 try:
-    # درخواست به سایت شبکه اطلاع‌رسانی طلا و ارز با هدر مرورگر برای جلوگیری از بلاک شدن
-    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
-    tgju_res = requests.get("https://www.tgju.org/", headers=headers, timeout=10)
+    # یک وب‌سرویس ایرانی بسیار پایدار و بدون نیاز به دور زدن تحریم
+    response_market = requests.get("https://api.navasan.tech/latest", timeout=7)
     
-    if tgju_res.status_code == 200:
-        soup = BeautifulSoup(tgju_res.text, 'html.parser')
+    if response_market.status_code == 200:
+        data = response_market.json()
         
-        # پیدا کردن قیمت‌ها از روی کلاس‌های مشخص در سایت TGJU
-        dollar_span = soup.find("li", {"id": "price_dollar_id"})
-        gold_span = soup.find("li", {"id": "price_geram18"})
-        coin_span = soup.find("li", {"id": "price_sekee"})
+        # استخراج قیمت‌ها (قیمت‌ها در این API به تومان هستند)
+        usd_data = data.get("usd", {})
+        gold_data = data.get("geram18", {})
+        coin_data = data.get("sekee", {})
         
-        dollar_price = dollar_span.find("span", {"class": "value"}).text.strip() if dollar_span else "نامشخص"
-        gold_price = gold_span.find("span", {"class": "value"}).text.strip() if gold_span else "نامشخص"
-        coin_price = coin_span.find("span", {"class": "value"}).text.strip() if coin_span else "نامشخص"
+        # گرفتن قیمت فروش (value)
+        dollar_val = usd_data.get("value", "نامشخص")
+        gold_val = gold_data.get("value", "نامشخص")
+        coin_val = coin_data.get("value", "نامشخص")
+        
+        # فرمت‌دهی و سه رقم سه رقم جدا کردن اعداد
+        f_dollar = f"{int(dollar_val):,} تومان" if str(dollar_val).isdigit() else dollar_val
+        f_gold = f"{int(gold_val):,} تومان" if str(gold_val).isdigit() else gold_val
+        f_coin = f"{int(coin_val):,} تومان" if str(coin_val).isdigit() else coin_val
         
         financial_text = (
-            f"💰 **پایش بازار مالی (تومان - TGJU):**\n"
-            f"💵 دلار بازار آزاد: {dollar_price}\n"
-            f"🪙 طلای ۱۸ عیار (گرم): {gold_price}\n"
-            f"🪙 سکه امامی: {coin_price}"
+            f"💰 **پایش بازار مالی (تومان):**\n"
+            f"💵 دلار بازار آزاد: {f_dollar}\n"
+            f"🪙 طلای ۱۸ عیار (گرم): {f_gold}\n"
+            f"🪙 سکه امامی: {f_coin}"
         )
 except Exception as e:
     pass
@@ -86,13 +90,8 @@ message = (
 
 # ۷. ارسال به تلگرام
 url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-response = requests.post(url, data={
+requests.post(url, data={
     "chat_id": CHAT_ID,
     "text": message,
     "parse_mode": "Markdown"
 })
-
-if response.status_code == 200:
-    print("TGJU financial report sent successfully!")
-else:
-    print(f"Failed to send. Error: {response.text}")
